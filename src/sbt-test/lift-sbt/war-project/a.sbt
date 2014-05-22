@@ -1,5 +1,4 @@
 import sbt._
-import LiftPlugin._
 
 val check = TaskKey[Unit]("check")
 

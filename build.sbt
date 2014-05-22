@@ -3,7 +3,7 @@ import ke.co.sbsproperties.sbt.SBSPlugin._
 import org.scalastyle.sbt.{ScalastylePlugin, PluginKeys => StylePluginKeys}
 
 
-lazy val sbtLift = project.in(file(".")).withSbsSbtPluginSettings
+lazy val sbtLift = project.in(file(".")).sbsSbtPluginSettings
 
 
 scriptedSettings

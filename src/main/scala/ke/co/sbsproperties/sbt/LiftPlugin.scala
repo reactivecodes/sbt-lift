@@ -19,62 +19,80 @@ package ke.co.sbsproperties.sbt
 import sbt._
 import Keys._
 import com.earldouglas.xsbtwebplugin.WarPlugin
+import sbt.plugins.IvyPlugin
+import sbt.impl.GroupArtifactID
 
 
 object LiftPlugin extends AutoPlugin {
 
-  override def trigger: PluginTrigger = noTrigger
+  override val requires: Plugins = IvyPlugin
 
-  override lazy val projectSettings: Seq[Def.Setting[_]] = defaultPluginSettings
+  override val trigger: PluginTrigger = noTrigger
 
-  val liftOrganisation = settingKey[String]("Organisation/groupID of the Lift Framework used in this project. Default " +
-    "value is 'net.liftweb'. This is an advanced setting for use if using a custom Lift Framework build.")
+  override lazy val projectSettings: Seq[Def.Setting[_]] = defaultProjectSettings
 
-  val liftVersion = settingKey[String]("Version/revision of the Lift Web Framework used in this project.")
+  sealed trait Import {
 
-  val liftDependencies = settingKey[Seq[LiftCoreLibrary]]("")
+    val LiftLibrary = LiftPlugin.LiftLibrary
+    type LiftLibrary = LiftPlugin.LiftLibrary
 
-  trait LiftCoreLibrary extends ((String, String) => ModuleID)
+    // Keys
+    val liftOrganisation = settingKey[String]("Organisation/groupID of the Lift Framework used in this project. Default"
+      + " value is 'net.liftweb'. This is an advanced setting for use if using a custom Lift Framework build.")
 
-  object LiftCoreLibrary {
+    val liftVersion = settingKey[String]("Revision/Version of the Lift Web Framework used in this project.")
 
-    def apply(lib: String): LiftCoreLibrary = apply(lib, "compile")
+    val liftDependencies = settingKey[Seq[LiftLibrary]]("")
 
-    def apply(lib: String, config: String): LiftCoreLibrary = new LiftCoreLibrary {
-      override def apply(organisation: String, version: String): ModuleID = {
-        val prefix = "lift-"
-        val proj = if (lib.startsWith(prefix)) lib else s"$prefix$lib"
-        organisation %% proj % version % config
-      }
+
+    // Lift Core Libraries
+    val liftActor = LiftLibrary("actor")
+    val liftCommon = LiftLibrary("common")
+    val liftJson = LiftLibrary("json")
+    val liftJsonExt = LiftLibrary("json-ext")
+    val liftJsonScalaz7 = LiftLibrary("json-scalaz7")
+    val liftMarkdown = LiftLibrary("markdown")
+    val liftUtil = LiftLibrary("util")
+
+    // Lift Persistence Libraries
+    val liftDB = LiftLibrary("db")
+    val liftMapper = LiftLibrary("mapper")
+    val liftMongoDB = LiftLibrary("mongodb")
+    val liftMongoRecord = LiftLibrary("mongodb-record")
+    val liftProto = LiftLibrary("proto")
+    val liftRecord = LiftLibrary("record")
+    val liftSquerylRecord = LiftLibrary("squeryl-record")
+
+    // Lift Web Libraries
+    val liftTestkit = LiftLibrary("testkit", Some("test"))
+    val liftWebkit = LiftLibrary("webkit")
+
+    // External Libraries (Provided Scope)
+    val javaxServletApi: ModuleID =
+      "org.jboss.spec.javax.servlet" % "jboss-servlet-api_3.0_spec" % "1.0.2.Final" % "provided"
+
+    implicit final class LiftProjectSyntax(val p: Project) {
+
+      def enableLift: Project = p.enablePlugins(LiftPlugin)
+
+      def dependsOn(libs: LiftLibrary*): Project = enableLift.settings(addLiftDependency(libs: _*))
+
+      def liftWarSettings: Project = enableLift.settings(liftWarProjectSettings: _*)
     }
   }
 
+  val autoImport = new Import {}
+  import autoImport._
 
-  // Core Projects
-  val liftActor = LiftCoreLibrary("actor")
-  val liftCommon = LiftCoreLibrary("common")
-  val liftJson = LiftCoreLibrary("json")
-  val liftJsonExt = LiftCoreLibrary("json-ext")
-  val liftJsonScalaz7 = LiftCoreLibrary("json-scalaz7")
-  val liftMarkdown = LiftCoreLibrary("markdown")
-  val liftUtil = LiftCoreLibrary("util")
+  case class LiftLibrary(lib: String, config: Option[String] = None)
 
-  // Persistence Projects
-  val liftDB = LiftCoreLibrary("db")
-  val liftMapper = LiftCoreLibrary("mapper")
-  val liftMongoDB = LiftCoreLibrary("mongodb")
-  val liftMongoRecord = LiftCoreLibrary("mongodb-record")
-  val liftProto = LiftCoreLibrary("proto")
-  val liftRecord = LiftCoreLibrary("record")
-  val liftSquerylRecord = LiftCoreLibrary("squeryl-record")
-
-  // Web Projects
-  val liftTestkit = LiftCoreLibrary("testkit", "test")
-  val liftWebkit = LiftCoreLibrary("webkit")
-
-  // External Projects (Provided Scope)
-  val javaxServletApi: ModuleID = "javax.servlet" % "javax.servlet-api" % "3.0.1" % "provided"
-
+  def liftModuleID(organisation: String, version: String)(library: LiftLibrary) = {
+    val id: GroupArtifactID = organisation %% {
+      val prefix = "lift-"
+      if (library.lib.startsWith(prefix)) library.lib else s"$prefix${library.lib}"
+    }
+    if (library.config.isDefined) id % version % library.config.get else id % version
+  }
 
   lazy val liftBaseSettings: Seq[Setting[_]] = Seq(
     libraryDependencies ++= Seq(javaxServletApi),
@@ -83,25 +101,13 @@ object LiftPlugin extends AutoPlugin {
 
   lazy val liftWarProjectSettings: Seq[Setting[_]] = WarPlugin.warSettings0(Runtime) ++ liftBaseSettings
 
-  def addLiftDependency(deps: LiftCoreLibrary*): Setting[Seq[LiftCoreLibrary]] = liftDependencies ++= deps
+  def addLiftDependency(deps: LiftLibrary*): Setting[Seq[LiftLibrary]] = liftDependencies ++= deps
 
-  private def defaultPluginSettings: Seq[Setting[_]] = Seq(
+  private def defaultProjectSettings: Seq[Setting[_]] = Seq(
     liftOrganisation <<= liftOrganisation ?? "net.liftweb",
-    liftVersion <<= liftVersion ?? "2.6-M3",
-    liftDependencies <<= liftDependencies ?? Seq.empty[LiftCoreLibrary],
+    liftVersion <<= liftVersion ?? "3.0-M0",
+    liftDependencies <<= liftDependencies ?? Seq.empty[LiftLibrary],
     libraryDependencies <++= (liftOrganisation, liftVersion, liftDependencies)(
-      (o, v, deps) => deps.map(_.apply(o, v)))
+      (o, v, deps) => deps.map(liftModuleID(o, v)(_)))
   )
-
-
-  implicit class LiftProjectSyntax(p: Project) {
-
-    def enableLift: Project = p.enablePlugins(LiftPlugin)
-
-    def dependsOn(libs: LiftCoreLibrary*): Project = enableLift.settings(addLiftDependency(libs: _*))
-
-    def liftWarSettings: Project = enableLift.settings(liftWarProjectSettings: _*)
-
-  }
-
 }
