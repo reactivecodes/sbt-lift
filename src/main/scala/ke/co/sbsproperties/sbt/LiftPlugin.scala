@@ -87,10 +87,10 @@ object LiftPlugin extends AutoPlugin {
   case class LiftLibrary(lib: String, config: Option[String] = None)
 
   def liftModuleID(organisation: String, version: String)(library: LiftLibrary) = {
-    val id: GroupArtifactID = organisation %% {
+    val id: GroupArtifactID = organisation.%%({
       val prefix = "lift-"
       if (library.lib.startsWith(prefix)) library.lib else s"$prefix${library.lib}"
-    }
+    })
     if (library.config.isDefined) id % version % library.config.get else id % version
   }
 
@@ -99,7 +99,9 @@ object LiftPlugin extends AutoPlugin {
     liftDependencies := Seq(liftWebkit, liftTestkit)
   )
 
-  lazy val liftWarProjectSettings: Seq[Setting[_]] = WarPlugin.warSettings0(Runtime) ++ liftBaseSettings
+  lazy val xsbtWarPluginSettings = inConfig(Compile)(WarPlugin.warSettings0(Runtime)) ++ WarPlugin.globalWarSettings
+
+  lazy val liftWarProjectSettings: Seq[Setting[_]] = xsbtWarPluginSettings ++ liftBaseSettings
 
   def addLiftDependency(deps: LiftLibrary*): Setting[Seq[LiftLibrary]] = liftDependencies ++= deps
 
@@ -108,6 +110,6 @@ object LiftPlugin extends AutoPlugin {
     liftVersion <<= liftVersion ?? "3.0-M0",
     liftDependencies <<= liftDependencies ?? Seq.empty[LiftLibrary],
     libraryDependencies <++= (liftOrganisation, liftVersion, liftDependencies)(
-      (o, v, deps) => deps.map(liftModuleID(o, v)(_)))
+      (o, v, deps) => deps.map(liftModuleID(o, v)))
   )
 }

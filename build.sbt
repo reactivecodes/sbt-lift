@@ -14,6 +14,8 @@ name := "SBT Lift"
 
 version := "0.1.0-SNAPSHOT"
 
+sbsOss := true
+
 licenses += ("Apache Software License, Version 2.0",
   url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
 
