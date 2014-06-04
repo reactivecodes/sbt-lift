@@ -19,13 +19,13 @@ package ke.co.sbsproperties.sbt
 import sbt._
 import Keys._
 import com.earldouglas.xsbtwebplugin.WarPlugin
-import sbt.plugins.IvyPlugin
+import sbt.plugins.JvmPlugin
 import sbt.impl.GroupArtifactID
 
 
 object LiftPlugin extends AutoPlugin {
 
-  override val requires: Plugins = IvyPlugin
+  override val requires: Plugins = JvmPlugin
 
   override val trigger: PluginTrigger = noTrigger
 
@@ -71,7 +71,7 @@ object LiftPlugin extends AutoPlugin {
     val javaxServletApi: ModuleID =
       "org.jboss.spec.javax.servlet" % "jboss-servlet-api_3.0_spec" % "1.0.2.Final" % "provided"
 
-    implicit final class LiftProjectSyntax(val p: Project) {
+    implicit final class LiftProjectSyntax(p: Project) {
 
       def enableLift: Project = p.enablePlugins(LiftPlugin)
 
